@@ -24,19 +24,36 @@ class Button(Enum):
 # define keybindings manually here
 # TODO: eventually replace with a proper menu interface for rebinding keys
 keybinds = {}
-keybinds[locals.K_7] = Button.LEFT
-keybinds[locals.K_8] = Button.DOWN
-keybinds[locals.K_9] = Button.RIGHT
-keybinds[locals.K_SPACE] = Button.UP
-keybinds[locals.K_z] = Button.PUNCH
-keybinds[locals.K_x] = Button.KICK
-keybinds[locals.K_c] = Button.SLASH
-keybinds[locals.K_v] = Button.HEAVY
-keybinds[locals.K_d] = Button.DUST
-keybinds[locals.K_f] = Button.MACRO_PKS
-keybinds[locals.K_g] = Button.MACRO_PK
-keybinds[locals.K_h] = Button.MACRO_PD
-keybinds[locals.K_j] = Button.MACRO_PKSH
+keybinds["P1"] = {}
+keybinds["P1"][locals.K_7] = Button.LEFT
+keybinds["P1"][locals.K_8] = Button.DOWN
+keybinds["P1"][locals.K_9] = Button.RIGHT
+keybinds["P1"][locals.K_SPACE] = Button.UP
+keybinds["P1"][locals.K_z] = Button.PUNCH
+keybinds["P1"][locals.K_x] = Button.KICK
+keybinds["P1"][locals.K_c] = Button.SLASH
+keybinds["P1"][locals.K_v] = Button.HEAVY
+keybinds["P1"][locals.K_d] = Button.DUST
+keybinds["P1"][locals.K_f] = Button.MACRO_PKS
+keybinds["P1"][locals.K_g] = Button.MACRO_PK
+keybinds["P1"][locals.K_h] = Button.MACRO_PD
+keybinds["P1"][locals.K_j] = Button.MACRO_PKSH
+
+# placeholder arbitrary P2 keybinds
+keybinds["P2"] = {}
+keybinds["P2"][locals.K_LEFT] = Button.LEFT
+keybinds["P2"][locals.K_DOWN] = Button.DOWN
+keybinds["P2"][locals.K_RIGHT] = Button.RIGHT
+keybinds["P2"][locals.K_UP] = Button.UP
+keybinds["P2"][locals.K_1] = Button.PUNCH
+keybinds["P2"][locals.K_2] = Button.KICK
+keybinds["P2"][locals.K_3] = Button.SLASH
+keybinds["P2"][locals.K_4] = Button.HEAVY
+keybinds["P2"][locals.K_5] = Button.DUST
+keybinds["P2"][locals.K_6] = Button.MACRO_PKS
+keybinds["P2"][locals.K_q] = Button.MACRO_PK
+keybinds["P2"][locals.K_w] = Button.MACRO_PD
+keybinds["P2"][locals.K_e] = Button.MACRO_PKSH
 
 macro_defs = {}
 macro_defs[Button.MACRO_PK] = [Button.PUNCH, Button.KICK]
@@ -44,7 +61,7 @@ macro_defs[Button.MACRO_PD] = [Button.PUNCH, Button.DUST]
 macro_defs[Button.MACRO_PKS] = [Button.PUNCH, Button.KICK, Button.SLASH]
 macro_defs[Button.MACRO_PKSH] = [Button.PUNCH, Button.KICK, Button.SLASH, Button.HEAVY]
 
-def keysPressedToInput(current_frame: int) -> Input:
+def keysPressedToInput(current_frame: int, player: str) -> Input:
     '''
     Takes an int current_frame,
     checks pygame.key.keys_pressed() for all keys currently pressed,
@@ -52,7 +69,7 @@ def keysPressedToInput(current_frame: int) -> Input:
     '''
     keys_pressed = pg.key.get_pressed()
     frame_buttons: dict[Button, bool] = {}
-    for (key, button) in keybinds.items():
+    for (key, button) in keybinds[player].items():
         frame_buttons[button] = keys_pressed[key]
         
     for macro_button in macro_defs.keys():
@@ -133,7 +150,9 @@ def attackButtonsToLetters(buttons: dict[Button, bool]) -> str:
 class Input():
     def __init__(self, buttons: dict[Button, bool], start_frame: int, end_frame: int):
         self.buttons = buttons
+        # Frame number that this Input began on, inclusive.
         self.start_frame = start_frame
+        # Frame number that this Input was released on, exclusive (self.buttons changed on this frame).
         self.end_frame = end_frame
         
     # https://stackoverflow.com/questions/390250/elegant-ways-to-support-equivalence-equality-in-python-classes
@@ -162,8 +181,26 @@ class InputHistory():
         # Down/back charge history will be stored in game state, so deleting old inputs has no effect on charge moves.
         if len(self.inputs) > 30:
             self.inputs.pop(0)
+            
+    def getFrameButtons(self, frame_number: int) -> dict[Button, bool]:
+        '''
+        Takes a frame number, and returns the dict of buttons pressed on that frame.
+        
+        Throws an IndexError if no input can be found for that frame number.
+        '''
+        if frame_number < self.inputs[0].start_frame:
+            raise IndexError(f"Frame number {frame_number} < earliest input start frame {self.inputs[0].start_frame}")
+        elif frame_number >= self.inputs[-1].end_frame:
+            raise IndexError(f"Frame number {frame_number} >= latest input end frame {self.inputs[-1].end_frame}")
+        
+        for input in reversed(self.inputs):
+            if frame_number >= input.start_frame and frame_number < input.end_frame:
+                return input.buttons
+        
+        raise IndexError(f"Frame number {frame_number} not found in inputs")
     
     def render(self, display: pg.surface.Surface) -> None:
+        # Font that supports Unicode arrows
         font = pg.font.Font("assets/seguisym.ttf", 20)
     
         for i in range(len(self.inputs)):
@@ -175,6 +212,7 @@ class InputHistory():
             input_string = f"{arrow_direction} {attack_buttons} {input.end_frame - input.start_frame}"
             
             text = font.render(f"{input_string}", True, constants.WHITE)
+            # TODO remove magic numbers that don't account for window size
             if self.player == "P1":
                 x = 10
             else:

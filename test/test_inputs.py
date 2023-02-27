@@ -7,19 +7,20 @@ import inputs
 from inputs import Button
 
 default_keybinds = {}
-default_keybinds[locals.K_7] = Button.LEFT
-default_keybinds[locals.K_8] = Button.DOWN
-default_keybinds[locals.K_9] = Button.RIGHT
-default_keybinds[locals.K_SPACE] = Button.UP
-default_keybinds[locals.K_z] = Button.PUNCH
-default_keybinds[locals.K_x] = Button.KICK
-default_keybinds[locals.K_c] = Button.SLASH
-default_keybinds[locals.K_v] = Button.HEAVY
-default_keybinds[locals.K_d] = Button.DUST
-default_keybinds[locals.K_f] = Button.MACRO_PKS
-default_keybinds[locals.K_g] = Button.MACRO_PK
-default_keybinds[locals.K_h] = Button.MACRO_PD
-default_keybinds[locals.K_j] = Button.MACRO_PKSH
+default_keybinds["P1"] = {}
+default_keybinds["P1"][locals.K_7] = Button.LEFT
+default_keybinds["P1"][locals.K_8] = Button.DOWN
+default_keybinds["P1"][locals.K_9] = Button.RIGHT
+default_keybinds["P1"][locals.K_SPACE] = Button.UP
+default_keybinds["P1"][locals.K_z] = Button.PUNCH
+default_keybinds["P1"][locals.K_x] = Button.KICK
+default_keybinds["P1"][locals.K_c] = Button.SLASH
+default_keybinds["P1"][locals.K_v] = Button.HEAVY
+default_keybinds["P1"][locals.K_d] = Button.DUST
+default_keybinds["P1"][locals.K_f] = Button.MACRO_PKS
+default_keybinds["P1"][locals.K_g] = Button.MACRO_PK
+default_keybinds["P1"][locals.K_h] = Button.MACRO_PD
+default_keybinds["P1"][locals.K_j] = Button.MACRO_PKSH
 
 def create_key_mock(pressed_key_list):
     '''
@@ -74,7 +75,7 @@ def test_keysPressedToInput(mock_key_get_pressed, test_input_keys, expected_butt
     mock_key_get_pressed.return_value = create_key_mock(test_input_keys)
     current_frame = 1
     
-    output = inputs.keysPressedToInput(current_frame)
+    output = inputs.keysPressedToInput(current_frame, "P1")
     expected = inputs.Input(create_buttons_dict(expected_buttons), 1, 2)
     
     assert output == expected
@@ -114,3 +115,25 @@ def test_inputHistory_append():
     expected = inputs.Input(create_buttons_dict([Button.KICK]), 3, 4)
     assert len(ih.inputs) == 2
     assert ih.inputs[-1] == expected
+ 
+    
+def test_inputHistory_getFrameButtons():
+    ih = inputs.InputHistory("P1")
+    ih.append(inputs.Input(create_buttons_dict([Button.PUNCH]), 5, 7))
+    # InputHistory should never have a gap in the middle, but let's create one
+    ih.append(inputs.Input(create_buttons_dict([Button.KICK]), 10, 15))
+    ih.append(inputs.Input(create_buttons_dict([Button.SLASH]), 15, 50))
+    
+    # Happy path
+    assert ih.getFrameButtons(5) == create_buttons_dict([Button.PUNCH])
+    assert ih.getFrameButtons(15) == create_buttons_dict([Button.SLASH])
+    
+    # Exception paths
+    with pytest.raises(IndexError, match="Frame number 2 < earliest input start frame 5"):
+        ih.getFrameButtons(2)
+    with pytest.raises(IndexError, match="Frame number 7 not found in inputs"):
+        ih.getFrameButtons(7)
+    with pytest.raises(IndexError, match="Frame number 50 >= latest input end frame 50"):
+        ih.getFrameButtons(50)
+    with pytest.raises(IndexError, match="Frame number 100 >= latest input end frame 50"):
+        ih.getFrameButtons(100)

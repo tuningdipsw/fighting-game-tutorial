@@ -1,6 +1,13 @@
+# Constants
 WINDOW_WIDTH = 640
 WINDOW_HEIGHT = 480
 FRAME_RATE_CAP = 60
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+
+# Global variables
+SHOW_HITBOXES = True
+SHOW_INPUT_HISTORY = True
